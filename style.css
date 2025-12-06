@@ -203,6 +203,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 24px;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 .hero-card {
@@ -321,9 +323,11 @@ body {
 .quadrant-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
+    grid-template-rows: repeat(2, minmax(300px, 1fr));
     gap: 24px;
     min-height: 600px;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .quadrant {
@@ -334,6 +338,9 @@ body {
     padding: 24px;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .facility-quadrant {
@@ -341,12 +348,16 @@ body {
     background: transparent;
     border: none;
     box-shadow: none;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .sensor-quadrant {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .sensor-header {
@@ -367,10 +378,12 @@ body {
     padding: 20px;
     text-align: center;
     border: 1px solid rgba(173, 238, 227, 0.35);
-    flex: 1;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
 }
 
 .chart-container h2 {
@@ -888,11 +901,25 @@ body {
         grid-template-columns: 1fr;
         grid-template-rows: auto;
         min-height: auto;
+        max-width: 100%;
     }
 
     .facility-dashboard .dashboard {
         grid-template-columns: 1fr;
         padding: 20px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .quadrant-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+}
+
+@media (min-resolution: 150dpi) {
+    .quadrant-grid {
+        gap: 20px;
     }
 }
 
