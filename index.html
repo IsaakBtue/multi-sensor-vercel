@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Sensor Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark">BN</div>
+                <div>
+                    <p class="brand-title">Building Monitor</p>
+                    <p class="brand-subtitle">Environmental Network</p>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="index.html#home" class="nav-link active">Home</a>
+                <a href="about.html" class="nav-link">About Us</a>
+                <a href="contact.html" class="nav-link">Contact</a>
+            </nav>
+            <div class="account-actions">
+                <button type="button" class="ghost-btn">Notifications</button>
+                <button type="button" class="account-btn">
+                    <span class="avatar">IA</span>
+                    <span>Account</span>
+                </button>
+            </div>
+        </header>
+
+        <main id="home" class="content">
+            <section class="hero-card">
+                <div class="hero-text">
+                    <p class="eyebrow">Live Facility Insights</p>
+                    <h1>Building Environmental Monitoring</h1>
+                    <p class="hero-body">
+                        Track every ESP node, stay on top of ventilation status, and respond instantly with a unified account system.
+                    </p>
+                    <div class="primary-actions">
+                        <button id="add-device-btn">Add New Device</button>
+                        <button class="ghost-btn" type="button">View Alerts</button>
+                    </div>
+                </div>
+                <div class="hero-meta">
+                    <div>
+                        <p class="meta-label">Account</p>
+                        <p class="meta-value">Facility Admin</p>
+                    </div>
+                    <div>
+                        <p class="meta-label">Devices Online</p>
+                        <p class="meta-value" id="meta-online-count">18</p>
+                    </div>
+                    <div>
+                        <p class="meta-label">Alerts</p>
+                        <p class="meta-value text-alert" id="meta-alert-count">2 active</p>
+                    </div>
+                </div>
+            </section>
+
+            <div id="low-battery-alert" class="alert-box hidden">
+                <p>⚠️ Low battery warning! Device battery is running low.</p>
+                <a href="tel:0123456789" class="call-button">Call for a replacement</a>
+            </div>
+
+            <div class="quadrant-grid">
+                <div class="quadrant facility-quadrant">
+                    <section class="facility-dashboard card">
+                        <main class="dashboard">
+                            <section class="building-wrapper">
+                                <div class="panel-section">
+                                    <h2>Facility Map</h2>
+                                    <p class="panel-subtext">
+                                        Hover a sensor to view its name, status and measured distance.
+                                    </p>
+                                    <div class="legend">
+                                        <div class="legend-item">
+                                            <span class="legend-dot online"></span>
+                                            Online
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-dot offline"></span>
+                                            Offline
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="buildingGrid" class="building-grid"></div>
+                            </section>
+                            <aside class="info-panel">
+                                <div class="panel-section">
+                                    <h2>Building Levels</h2>
+                                    <div id="levelSwitcher" class="level-switcher"></div>
+                                </div>
+                                <div class="panel-section">
+                                    <h2>Overview</h2>
+                                    <div class="status-summary" id="statusSummary"></div>
+                                </div>
+                                <div class="panel-section">
+                                    <h2>Relative Distances</h2>
+                                    <div id="relativeDistances" class="relative-list">
+                                        <div class="relative-placeholder">Select a sensor on the map to compare.</div>
+                                    </div>
+                                </div>
+                            </aside>
+                        </main>
+                    </section>
+                </div>
+
+                <div class="quadrant sensor-quadrant">
+                    <div class="sensor-card" id="humidity-card">
+                        <div class="sensor-header">
+                            <h2>Humidity</h2>
+                        </div>
+                        <p class="sensor-value" id="humidity-value">Waiting for data...</p>
+                    </div>
+                    <div class="chart-container">
+                        <h2>Humidity Trend</h2>
+                        <canvas id="humidity-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="quadrant sensor-quadrant">
+                    <div class="sensor-card" id="temperature-card">
+                        <div class="sensor-header">
+                            <h2>Temperature</h2>
+                        </div>
+                        <p class="sensor-value" id="temperature-value">Waiting for data...</p>
+                    </div>
+                    <div class="chart-container">
+                        <h2>Temperature Trend</h2>
+                        <canvas id="temperature-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="quadrant sensor-quadrant">
+                    <div class="sensor-card" id="co2-card">
+                        <div class="sensor-header">
+                            <h2>CO₂ Level</h2>
+                        </div>
+                        <p class="sensor-value" id="co2-value">Waiting for data...</p>
+                    </div>
+                    <div class="chart-container">
+                        <h2>CO₂ Level Trend</h2>
+                        <canvas id="co2-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <div id="add-device-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Enter New Device Code</h2>
+            <p>Please enter the device code found on your new sensor.</p>
+            <input type="text" id="device-code-input" placeholder="e.g., 1A2B3C4D">
+            <input type="text" id="room-name-input" placeholder="e.g., Server Room">
+            <button id="save-device-btn">Save Device</button>
+            <p id="modal-message" class="hidden"></p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+

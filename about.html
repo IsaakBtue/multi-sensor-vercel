@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us • Building Monitor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark">BN</div>
+                <div>
+                    <p class="brand-title">Building Monitor</p>
+                    <p class="brand-subtitle">Environmental Network</p>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="index.html#home" class="nav-link">Home</a>
+                <a href="about.html" class="nav-link active">About Us</a>
+                <a href="contact.html" class="nav-link">Contact</a>
+            </nav>
+            <div class="account-actions">
+                <button type="button" class="ghost-btn">Notifications</button>
+                <button type="button" class="account-btn">
+                    <span class="avatar">IA</span>
+                    <span>Account</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="content">
+            <section class="hero-card">
+                <div class="hero-text">
+                    <p class="eyebrow">Who We Are</p>
+                    <h1>Engineering smarter comfort for every room.</h1>
+                    <p class="hero-body">
+                        We are a multidisciplinary Engineering Design team from TU Eindhoven. Our brief:
+                        craft a trustworthy product that watches temperature, humidity, and CO₂ in real time
+                        and plugs straight into the smart systems you already use.
+                    </p>
+                    <div class="primary-actions">
+                        <a class="account-btn" href="index.html#home">View Live Dashboard</a>
+                        <button class="ghost-btn" type="button">Meet the Team</button>
+                    </div>
+                </div>
+                <div class="hero-meta">
+                    <div>
+                        <p class="meta-label">Course</p>
+                        <p class="meta-value">Engineering Design</p>
+                    </div>
+                    <div>
+                        <p class="meta-label">University</p>
+                        <p class="meta-value">TU/e</p>
+                    </div>
+                    <div>
+                        <p class="meta-label">Focus</p>
+                        <p class="meta-value text-alert">Indoor Well-being</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="about-section">
+                <div class="about-card">
+                    <h2>Our Mission</h2>
+                    <p>
+                        Buildings only feel smart when they can sense what people feel. Our solution links a mesh of
+                        ESP32-powered sensors with a clean control layer so facility teams can keep air quality
+                        within healthy bounds, log historical context, and automate ventilation or climate scenes
+                        with the touch of a button.
+                    </p>
+                    <div class="dashboard-grid">
+                        <div class="sensor-card">
+                            <h2>Temperature</h2>
+                            <p>0.2 °C accuracy</p>
+                        </div>
+                        <div class="sensor-card">
+                            <h2>Humidity</h2>
+                            <p>±2% RH</p>
+                        </div>
+                        <div class="sensor-card">
+                            <h2>CO₂</h2>
+                            <p>Smart HVAC triggers</p>
+                        </div>
+                    </div>
+                    <div class="about-actions">
+                        <button type="button" class="account-btn" onclick="window.location.href='index.html#home'">
+                            Explore the Product
+                        </button>
+                        <button type="button" class="ghost-btn" onclick="window.location.href='contact.html'">
+                            Request a Demo
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="about-section">
+                <div class="about-card image-card">
+                    <img src="final_sys_diagram.jpg" alt="Gateway system diagram" class="about-image" />
+                    <p class="image-caption">
+                        Final system diagram showcasing the ESP32 sensor mesh, smart gateway, and integrations with building automation platforms.
+                    </p>
+                </div>
+            </section>
+
+            <section class="about-section">
+                <div class="about-card">
+                    <h2>From Lab to Living Spaces</h2>
+                    <p>
+                        Every device we deploy is calibrated inside TU Eindhoven labs, stress-tested across dorms,
+                        lecture halls, and collaborative studios, and then handed over with APIs that connect
+                        directly to your smart hub of choice. Whether you automate windows, fans, or lighting,
+                        our data stream translates into actionable routines.
+                    </p>
+                    <ul style="text-align:left; line-height:1.7; color:rgba(15,23,42,0.75);">
+                        <li>Edge processing on ESP32 ensures instantaneous alerts.</li>
+                        <li>Secure gateway shares metrics with building management systems.</li>
+                        <li>Open integration hooks tie into Home Assistant, KNX, or custom apps.</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
+

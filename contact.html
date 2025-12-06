@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact • Building Monitor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark">BN</div>
+                <div>
+                    <p class="brand-title">Building Monitor</p>
+                    <p class="brand-subtitle">Environmental Network</p>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="index.html#home" class="nav-link">Home</a>
+                <a href="about.html" class="nav-link">About Us</a>
+                <a href="contact.html" class="nav-link active">Contact</a>
+            </nav>
+            <div class="account-actions">
+                <button type="button" class="ghost-btn">Notifications</button>
+                <button type="button" class="account-btn">
+                    <span class="avatar">IA</span>
+                    <span>Account</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="content">
+            <section class="hero-card">
+                <div class="hero-text">
+                    <p class="eyebrow">Talk To Us</p>
+                    <h1>Book a demo or ask us anything.</h1>
+                    <p class="hero-body">
+                        Send us your details and we'll reach out with a tailored walkthrough of the
+                        Building Monitor platform, or help integrate our sensor mesh with your current smart setup.
+                    </p>
+                </div>
+                <div class="hero-meta">
+                    <div>
+                        <p class="meta-label">Response Time</p>
+                        <p class="meta-value">within 2 days</p>
+                    </div>
+                    <div>
+                        <p class="meta-label">Team</p>
+                        <p class="meta-value">TU/e Eng. Design</p>
+                    </div>
+                    <div>
+                        <p class="meta-label">Support</p>
+                        <p class="meta-value text-alert">Global Remote</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="contact-section">
+                <form class="contact-form">
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="fullName">Full Name</label>
+                            <input type="text" id="fullName" name="fullName" placeholder="e.g. John Doe" required>
+                        </div>
+                        <div class="form-field">
+                            <label for="email">Contact Email</label>
+                            <input type="email" id="email" name="email" placeholder="you@example.com" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="organization">Organization</label>
+                            <input type="text" id="organization" name="organization" placeholder="Company / University">
+                        </div>
+                        <div class="form-field">
+                            <label for="phone">Phone</label>
+                            <input type="tel" id="phone" name="phone" placeholder="+31 6 1234 5678">
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label for="message">Message</label>
+                        <textarea id="message" name="message" rows="5" placeholder="Tell us about your facility or what you want to connect…"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="account-btn">Send Request</button>
+                        <button type="reset" class="ghost-btn">Clear</button>
+                    </div>
+                </form>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
+
