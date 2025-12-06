@@ -1,0 +1,237 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\title{WiFi Data Import Guide\\Multi-Sensor Network}
+\author{Multi-Sensor Network Documentation}
+\date{\today}
+
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    stringstyle=\color{red},
+    commentstyle=\color{gray},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10}
+}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+This document explains how to send sensor data from ESP32 devices (or any WiFi-enabled device) to the multi-sensor network dashboard via HTTP POST requests.
+
+\section{API Endpoint}
+
+The main data ingestion endpoint is:
+\begin{verbatim}
+POST /api/ingest
+\end{verbatim}
+
+Full URL format:
+\begin{verbatim}
+https://your-vercel-app.vercel.app/api/ingest
+\end{verbatim}
+
+\section{Data Format}
+
+The API expects a JSON payload with the following structure:
+
+\begin{lstlisting}[language=JSON]
+{
+    "temperature": 23.5,
+    "humidity": 45.2,
+    "co2": 420
+}
+\end{lstlisting}
+
+\subsection{Required Fields}
+\begin{itemize}
+    \item \texttt{co2}: Number (required) - CO$_2$ level in ppm
+    \item \texttt{temperature}: Number (optional) - Temperature in degrees Celsius
+    \item \texttt{humidity}: Number (optional) - Humidity percentage
+\end{itemize}
+
+\section{Example Implementations}
+
+\subsection{ESP32 Arduino Code}
+
+\begin{lstlisting}[language=C++]
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+const char* serverURL = "https://your-app.vercel.app/api/ingest";
+
+void setup() {
+    Serial.begin(115200);
+    WiFi.begin(ssid, password);
+    
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("WiFi connected");
+}
+
+void sendSensorData(float temp, float humidity, int co2) {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin(serverURL);
+        http.addHeader("Content-Type", "application/json");
+        
+        StaticJsonDocument<200> doc;
+        doc["temperature"] = temp;
+        doc["humidity"] = humidity;
+        doc["co2"] = co2;
+        
+        String jsonString;
+        serializeJson(doc, jsonString);
+        
+        int httpResponseCode = http.POST(jsonString);
+        
+        if (httpResponseCode > 0) {
+            Serial.print("HTTP Response code: ");
+            Serial.println(httpResponseCode);
+        } else {
+            Serial.print("Error code: ");
+            Serial.println(httpResponseCode);
+        }
+        
+        http.end();
+    }
+}
+
+void loop() {
+    float temp = readTemperature();
+    float humidity = readHumidity();
+    int co2 = readCO2();
+    
+    sendSensorData(temp, humidity, co2);
+    delay(5000);
+}
+\end{lstlisting}
+
+\subsection{Python Example}
+
+\begin{lstlisting}[language=Python]
+import requests
+import json
+import time
+
+API_URL = "https://your-app.vercel.app/api/ingest"
+
+def send_sensor_data(temperature, humidity, co2):
+    payload = {
+        "temperature": temperature,
+        "humidity": humidity,
+        "co2": co2
+    }
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(API_URL, 
+                                json=payload, 
+                                headers=headers)
+        response.raise_for_status()
+        print(f"Success: {response.json()}")
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Error: {e}")
+        return False
+
+# Example usage
+if __name__ == "__main__":
+    while True:
+        send_sensor_data(
+            temperature=23.5,
+            humidity=45.2,
+            co2=420
+        )
+        time.sleep(5)
+\end{lstlisting}
+
+\subsection{cURL Command}
+
+For testing from command line:
+
+\begin{lstlisting}[language=bash]
+curl -X POST https://your-app.vercel.app/api/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "temperature": 23.5,
+    "humidity": 45.2,
+    "co2": 420
+  }'
+\end{lstlisting}
+
+\section{Response Format}
+
+\subsection{Success Response}
+\begin{lstlisting}[language=JSON]
+{
+    "ok": true
+}
+\end{lstlisting}
+
+\subsection{Error Responses}
+
+Invalid payload (missing or invalid co2):
+\begin{lstlisting}[language=JSON]
+{
+    "ok": false,
+    "error": "Invalid payload"
+}
+\end{lstlisting}
+
+HTTP Status Codes:
+\begin{itemize}
+    \item \texttt{200}: Success
+    \item \texttt{400}: Invalid payload
+    \item \texttt{405}: Method not allowed (must use POST)
+\end{itemize}
+
+\section{Important Notes}
+
+\begin{itemize}
+    \item The \texttt{co2} field is \textbf{required} and must be a number
+    \item Use HTTPS for secure connections
+    \item The API supports CORS, so it can be called from web browsers
+    \item For production, implement error handling and retry logic
+    \item Consider rate limiting to avoid overwhelming the server
+    \item The dashboard polls for new data every second
+\end{itemize}
+
+\section{Troubleshooting}
+
+\begin{itemize}
+    \item \textbf{Connection timeout}: Check WiFi connection and server URL
+    \item \textbf{400 Bad Request}: Verify JSON format and required fields
+    \item \textbf{SSL errors}: Ensure device supports HTTPS/TLS
+    \item \textbf{No data on dashboard}: Check that data is being sent successfully (check response code)
+\end{itemize}
+
+\section{Additional Resources}
+
+\begin{itemize}
+    \item API Status endpoint: \texttt{GET /api/status}
+    \item Dashboard: \texttt{https://your-app.vercel.app/}
+    \item Repository: \url{https://github.com/IsaakBtue/multi-sensor-vercel}
+\end{itemize}
+
+\end{document}
+
