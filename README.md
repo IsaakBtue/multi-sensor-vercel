@@ -2,6 +2,8 @@
 
 Web dashboard for monitoring environmental sensor data (temperature, humidity, CO₂) from ESP32 devices.
 
+🌐 **Live Demo:** https://multi-sensor-vercel.vercel.app/
+
 ## Project Structure
 
 ```
