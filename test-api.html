@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Vercel API Test</h1>
+    <button onclick="testPOST()">1. Send Test Data (POST)</button>
+    <button onclick="testGET()">2. Get Latest Reading (GET)</button>
+    <div id="results"></div>
+
+    <script>
+        async function testPOST() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Sending POST request...</p>';
+            
+            try {
+                const response = await fetch('https://multisensornetwork.vercel.app/api/ingest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        temperature: 25.5,
+                        humidity: 55.0,
+                        co2: 1000
+                    })
+                });
+                
+                const data = await response.json();
+                results.innerHTML = `
+                    <div class="status success">POST Success!</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="status error">POST Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function testGET() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Fetching GET request...</p>';
+            
+            try {
+                const response = await fetch('https://multisensornetwork.vercel.app/api/ingest?t=' + Date.now(), {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                const data = await response.json();
+                const statusClass = data.hasReading ? 'success' : 'error';
+                results.innerHTML = `
+                    <div class="status ${statusClass}">GET Response</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    ${data.hasReading ? `
+                        <p><strong>Reading:</strong></p>
+                        <ul>
+                            <li>Temperature: ${data.reading.temperature}°C</li>
+                            <li>Humidity: ${data.reading.humidity}%</li>
+                            <li>CO2: ${data.reading.co2} ppm</li>
+                        </ul>
+                    ` : '<p>No reading available</p>'}
+                `;
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="status error">GET Error: ${error.message}</div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
+
