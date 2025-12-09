@@ -57,7 +57,7 @@ export default async function handler(req, res) {
   // Validate payload - accept various formats
   let reading = null;
   
-  // Format 1: Direct fields
+  // Format 1: Direct fields (from ESP32: includes mac, device_id, temperature, humidity, co2)
   if (m && typeof m.co2 === 'number') {
     reading = {
       temperature: typeof m.temperature === 'number' ? m.temperature : 0,
