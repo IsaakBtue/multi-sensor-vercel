@@ -111,56 +111,56 @@ function isBatteryLow() {
 }
 
 async function getSensorData() {
-    const apiUrl = '/api/ingest';
-    try {
-        const response = await fetch(apiUrl + '?t=' + Date.now(), {
-            cache: 'no-store',
-            headers: {
-                'Cache-Control': 'no-cache'
+    // Try HTTP bridge endpoint first (where ESP32 gateway sends data)
+    const endpoints = ['/api/ingest-http-bridge', '/api/ingest'];
+    
+    for (const apiUrl of endpoints) {
+        try {
+            const response = await fetch(apiUrl + '?t=' + Date.now(), {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            if (!response.ok) {
+                continue; // Try next endpoint
             }
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+            const data = await response.json();
 
-        console.log('API Response:', data);
+            console.log(`API Response from ${apiUrl}:`, data);
 
-        if (!data.ok || !data.hasReading || !data.reading) {
-            console.log('No reading available, returning zeros');
+            if (!data.ok || !data.hasReading || !data.reading) {
+                continue; // Try next endpoint
+            }
+
+            const { temperature, co2, humidity } = data.reading;
+            
+            console.log(`Received sensor data - Temp: ${temperature}°C, CO2: ${co2}ppm, Humidity: ${humidity}%`);
+
             return {
-                temperature: '0.0 °C',
-                humidity: '0.0 %',
-                co2: '0 ppm',
-                rawTemp: 0,
-                rawCo2: 0,
-                rawHumidity: 0
+                temperature: `${temperature.toFixed(1)} °C`,
+                humidity: `${humidity.toFixed(1)} %`,
+                co2: `${co2.toFixed(0)} ppm`,
+                rawTemp: temperature,
+                rawCo2: co2,
+                rawHumidity: humidity
             };
+        } catch (error) {
+            console.error(`Error fetching from ${apiUrl}:`, error);
+            continue; // Try next endpoint
         }
-
-        const { temperature, co2, humidity } = data.reading;
-        
-        console.log(`Received sensor data - Temp: ${temperature}°C, CO2: ${co2}ppm, Humidity: ${humidity}%`);
-
-        return {
-            temperature: `${temperature.toFixed(1)} °C`,
-            humidity: `${humidity.toFixed(1)} %`,
-            co2: `${co2.toFixed(0)} ppm`,
-            rawTemp: temperature,
-            rawCo2: co2,
-            rawHumidity: humidity
-        };
-    } catch (error) {
-        console.error("Could not fetch data:", error);
-        return {
-            temperature: '0.0 °C',
-            humidity: '0.0 %',
-            co2: '0 ppm',
-            rawTemp: 0,
-            rawCo2: 0,
-            rawHumidity: 0
-        };
     }
+    
+    // If all endpoints failed or returned no data
+    console.log('No reading available from any endpoint, returning zeros');
+    return {
+        temperature: '0.0 °C',
+        humidity: '0.0 %',
+        co2: '0 ppm',
+        rawTemp: 0,
+        rawCo2: 0,
+        rawHumidity: 0
+    };
 }
 
 async function updateDashboard() {
