@@ -41,7 +41,7 @@
                 </div>
             </section>
 
-            <div class="quadrant-grid" style="grid-template-columns: 1fr; grid-template-rows: auto;">
+            <div class="quadrant-grid" style="grid-template-columns: 1fr; grid-template-rows: auto auto;">
                 <div class="quadrant">
                     <section class="card">
                         <h2>Whitelisted Devices</h2>
@@ -50,6 +50,15 @@
                         </div>
                         <div style="margin-top: 20px;">
                             <button id="clear-whitelist-btn" class="ghost-btn" style="color: #d97706;">Clear All Whitelist</button>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="quadrant">
+                    <section class="card">
+                        <h2>Unwhitelisted Devices</h2>
+                        <div id="unwhitelisted-devices-list" style="margin-top: 20px;">
+                            <p>Loading devices...</p>
                         </div>
                     </section>
                 </div>

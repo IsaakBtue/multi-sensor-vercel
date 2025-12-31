@@ -1,5 +1,5 @@
 // Data storage per device
-const deviceData = {}; // { deviceId: { temperature: [], co2: [], humidity: [], labels: [] } }
+const deviceData = {}; // { deviceId: { temperature: [], co2: [], humidity: [] } }
 const labels = []; // Shared time labels across all devices
 
 const co2AlertThreshold = 800;
@@ -7,17 +7,22 @@ const co2AlertThreshold = 800;
 // Color palette for different devices
 const deviceColors = [
     'rgb(75, 192, 192)',   // Teal
-    'rgb(255, 99, 132)',   // Red
+    'rgb(255, 99, 132)',   // Red/Pink
     'rgb(134, 222, 183)',  // Green
     'rgb(255, 159, 64)',   // Orange
     'rgb(153, 102, 255)',  // Purple
     'rgb(54, 162, 235)',   // Blue
     'rgb(255, 205, 86)',   // Yellow
-    'rgb(201, 203, 207)'   // Grey
+    'rgb(201, 203, 207)',  // Grey
+    'rgb(255, 99, 71)',    // Tomato
+    'rgb(50, 205, 50)'     // Lime Green
 ];
 
 function getDeviceColor(deviceId) {
-    const index = whitelistedDevices.indexOf(deviceId);
+    if (!deviceId) return deviceColors[0];
+    // Use allKnownDevices to get consistent color assignment for all devices
+    const index = allKnownDevices.indexOf(deviceId);
+    if (index === -1) return deviceColors[0];
     return deviceColors[index % deviceColors.length];
 }
 
@@ -26,8 +31,7 @@ function initializeDeviceData(deviceId) {
         deviceData[deviceId] = {
             temperature: [],
             co2: [],
-            humidity: [],
-            lastUpdate: null
+            humidity: []
         };
     }
 }
@@ -36,6 +40,28 @@ function initializeDeviceData(deviceId) {
 let whitelistedDevices = JSON.parse(localStorage.getItem('whitelistedDevices') || '[]');
 let pendingDevice = null;
 let promptedDevices = new Set(JSON.parse(localStorage.getItem('promptedDevices') || '[]'));
+let enableAllTraffic = JSON.parse(localStorage.getItem('enableAllTraffic') || 'false') === true;
+
+// Device names and tracking
+let deviceNames = JSON.parse(localStorage.getItem('deviceNames') || '{}'); // { deviceId: "Device Name" }
+let allKnownDevices = JSON.parse(localStorage.getItem('allKnownDevices') || '[]'); // All devices that have sent data
+
+function getDeviceName(deviceId) {
+    return deviceNames[deviceId] || deviceId;
+}
+
+function setDeviceName(deviceId, name) {
+    deviceNames[deviceId] = name;
+    localStorage.setItem('deviceNames', JSON.stringify(deviceNames));
+}
+
+function getAllDevicesForCharts() {
+    // If enableAllTraffic is on, show all known devices, otherwise only whitelisted
+    if (enableAllTraffic) {
+        return allKnownDevices;
+    }
+    return whitelistedDevices;
+}
 
 // Whitelist modal elements
 const whitelistModal = document.getElementById('whitelist-modal');
@@ -78,26 +104,33 @@ const co2Card = document.getElementById('co2-card');
 let currentSensors = [];
 let selectedSensorName = null;
 
-// Function to update chart datasets based on whitelisted devices
+// Function to update chart datasets based on devices to show
 function updateChartDatasets(chart, dataType) {
-    const datasets = whitelistedDevices.map(deviceId => {
+    const devicesToShow = getAllDevicesForCharts();
+    const datasets = devicesToShow.map(deviceId => {
         initializeDeviceData(deviceId);
         const device = deviceData[deviceId];
         const deviceDataArray = device[dataType] || [];
         
-        // Ensure data array matches labels length
+        // Ensure data array matches labels length (pad with null if needed)
         const alignedData = [];
         for (let i = 0; i < labels.length; i++) {
             alignedData.push(deviceDataArray[i] !== undefined ? deviceDataArray[i] : null);
         }
         
+        const isWhitelisted = whitelistedDevices.includes(deviceId);
+        const deviceName = getDeviceName(deviceId);
+        const label = isWhitelisted ? deviceName : `${deviceName} (Unwhitelisted)`;
+        
         return {
-            label: `${deviceId}`,
+            label: label,
             data: alignedData,
             borderColor: getDeviceColor(deviceId),
+            backgroundColor: getDeviceColor(deviceId).replace('rgb', 'rgba').replace(')', ', 0.1)'),
             tension: 0.1,
             fill: false,
-            spanGaps: true // Allow gaps in data
+            spanGaps: true, // Allow gaps in data
+            borderDash: isWhitelisted ? [] : [5, 5] // Dashed line for unwhitelisted devices
         };
     });
     
@@ -115,7 +148,14 @@ const tempChart = new Chart(tempCtx, {
         plugins: {
             legend: {
                 display: true,
-                position: 'top'
+                position: 'top',
+                labels: {
+                    usePointStyle: true,
+                    padding: 15,
+                    font: {
+                        size: 12
+                    }
+                }
             }
         },
         scales: {
@@ -146,7 +186,14 @@ const co2Chart = new Chart(co2Ctx, {
         plugins: {
             legend: {
                 display: true,
-                position: 'top'
+                position: 'top',
+                labels: {
+                    usePointStyle: true,
+                    padding: 15,
+                    font: {
+                        size: 12
+                    }
+                }
             }
         },
         scales: {
@@ -155,6 +202,12 @@ const co2Chart = new Chart(co2Ctx, {
                 title: {
                     display: true,
                     text: 'CO₂ Level (ppm)'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Time'
                 }
             }
         }
@@ -171,7 +224,14 @@ const humidityChart = humidityCtx ? new Chart(humidityCtx, {
         plugins: {
             legend: {
                 display: true,
-                position: 'top'
+                position: 'top',
+                labels: {
+                    usePointStyle: true,
+                    padding: 15,
+                    font: {
+                        size: 12
+                    }
+                }
             }
         },
         scales: {
@@ -183,6 +243,12 @@ const humidityChart = humidityCtx ? new Chart(humidityCtx, {
                 },
                 suggestedMin: 30,
                 suggestedMax: 70
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Time'
+                }
             }
         }
     }
@@ -194,7 +260,30 @@ function isBatteryLow() {
 
 function isDeviceWhitelisted(deviceId) {
     if (!deviceId) return false;
+    // If "Enable All Traffic" is on, all devices are considered whitelisted
+    if (enableAllTraffic) return true;
     return whitelistedDevices.includes(deviceId);
+}
+
+// Event tracking system
+function addEvent(type, description, deviceId = null) {
+    let events = JSON.parse(localStorage.getItem('deviceEvents') || '[]');
+    const event = {
+        id: Date.now(),
+        type: type,
+        description: description,
+        deviceId: deviceId,
+        timestamp: new Date().toISOString(),
+        displayTime: new Date().toLocaleString()
+    };
+    events.unshift(event); // Add to beginning
+    // Keep only last 100 events
+    if (events.length > 100) {
+        events = events.slice(0, 100);
+    }
+    localStorage.setItem('deviceEvents', JSON.stringify(events));
+    console.log('Event added:', event);
+    return event;
 }
 
 function addDeviceToWhitelist(deviceId) {
@@ -203,6 +292,8 @@ function addDeviceToWhitelist(deviceId) {
         localStorage.setItem('whitelistedDevices', JSON.stringify(whitelistedDevices));
         initializeDeviceData(deviceId);
         console.log(`Device ${deviceId} added to whitelist`);
+        // Update charts to include new device
+        updateAllCharts();
         return true;
     }
     return false;
@@ -220,12 +311,6 @@ function showWhitelistPopup(deviceId) {
         return;
     }
     
-    // Check if modal elements exist
-    if (!whitelistModal || !whitelistDeviceInfo) {
-        console.error('Whitelist modal elements not found!');
-        return;
-    }
-    
     // Only show popup if we haven't prompted about this device before
     if (promptedDevices.has(deviceId)) {
         console.log(`Already prompted about device ${deviceId}, skipping popup`);
@@ -239,9 +324,6 @@ function showWhitelistPopup(deviceId) {
     whitelistDeviceInfo.textContent = `Device ID: ${deviceId}`;
     whitelistModal.classList.remove('hidden');
     console.log('Whitelist modal should now be visible');
-    
-    // Force modal to be visible (in case CSS is hiding it)
-    whitelistModal.style.display = 'flex';
 }
 
 function closeWhitelistModal() {
@@ -259,20 +341,23 @@ if (whitelistYesBtn && whitelistNoBtn && whitelistCloseBtn && whitelistModal) {
             }
             closeWhitelistModal();
             // Immediately refresh dashboard to show data from newly whitelisted device
-            updateAllCharts();
             setTimeout(() => updateDashboard(), 100);
         }
     });
 
     whitelistNoBtn.addEventListener('click', () => {
         console.log(`User clicked No - NOT whitelisting device: ${pendingDevice}`);
-        addEvent('device_rejected', `Device ${pendingDevice} was rejected`, pendingDevice);
+        if (pendingDevice) {
+            addEvent('device_rejected', `Device ${pendingDevice} was rejected`, pendingDevice);
+        }
         closeWhitelistModal();
     });
 
     whitelistCloseBtn.addEventListener('click', () => {
         console.log(`User closed popup - NOT whitelisting device: ${pendingDevice}`);
-        addEvent('device_rejected', `Device ${pendingDevice} popup was closed`, pendingDevice);
+        if (pendingDevice) {
+            addEvent('device_rejected', `Device ${pendingDevice} popup was closed`, pendingDevice);
+        }
         closeWhitelistModal();
     });
 
@@ -283,69 +368,6 @@ if (whitelistYesBtn && whitelistNoBtn && whitelistCloseBtn && whitelistModal) {
     });
 } else {
     console.error('Cannot set up whitelist modal event handlers - elements missing');
-}
-
-// Enable All Devices button
-const enableAllDevicesBtn = document.getElementById('enable-all-devices-btn');
-if (enableAllDevicesBtn) {
-    enableAllDevicesBtn.addEventListener('click', async () => {
-        // Get all devices that have sent data but aren't whitelisted
-        const allKnownDevices = new Set();
-        
-        // Check localStorage for any stored device IDs from events
-        const storedEvents = JSON.parse(localStorage.getItem('deviceEvents') || '[]');
-        storedEvents.forEach(event => {
-            if (event.deviceId) {
-                allKnownDevices.add(event.deviceId);
-            }
-        });
-        
-        // Also check prompted devices
-        promptedDevices.forEach(deviceId => {
-            allKnownDevices.add(deviceId);
-        });
-        
-        // Check current API for any device sending data
-        try {
-            const endpoints = ['/api/ingest-http-bridge', '/api/ingest'];
-            for (const apiUrl of endpoints) {
-                const response = await fetch(apiUrl + '?t=' + Date.now(), {
-                    cache: 'no-store',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.ok && data.hasReading && data.reading) {
-                        const deviceId = data.reading.device_id || data.reading.mac;
-                        if (deviceId) {
-                            allKnownDevices.add(deviceId);
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error checking for devices:', error);
-        }
-        
-        let addedCount = 0;
-        allKnownDevices.forEach(deviceId => {
-            if (!isDeviceWhitelisted(deviceId)) {
-                if (addDeviceToWhitelist(deviceId)) {
-                    addEvent('device_added', `Device ${deviceId} was auto-whitelisted via "Enable All Devices"`, deviceId);
-                    addedCount++;
-                }
-            }
-        });
-        
-        if (addedCount > 0) {
-            alert(`Enabled ${addedCount} device(s). All devices are now whitelisted.`);
-            updateAllCharts();
-            // Refresh dashboard
-            setTimeout(() => updateDashboard(), 100);
-        } else {
-            alert('No new devices to enable. All known devices are already whitelisted.');
-        }
-    });
 }
 
 async function getSensorData() {
@@ -374,21 +396,37 @@ async function getSensorData() {
             const reading = data.reading;
             const deviceId = reading.device_id || reading.mac;
             
+            // Track all devices that send data
+            if (deviceId && !allKnownDevices.includes(deviceId)) {
+                allKnownDevices.push(deviceId);
+                localStorage.setItem('allKnownDevices', JSON.stringify(allKnownDevices));
+                // Set default name if not set
+                if (!deviceNames[deviceId]) {
+                    setDeviceName(deviceId, deviceId);
+                }
+            }
+            
             console.log(`Checking device: ${deviceId}, Whitelisted: ${isDeviceWhitelisted(deviceId)}, Whitelist array:`, whitelistedDevices);
             
             // Check if device is whitelisted
             if (deviceId && !isDeviceWhitelisted(deviceId)) {
-                console.log(`Device ${deviceId} is NOT whitelisted - showing popup`);
-                // Show whitelist popup if not already shown for this device
-                if (!promptedDevices.has(deviceId)) {
-                    console.log(`Showing whitelist popup for device: ${deviceId}`);
-                    showWhitelistPopup(deviceId);
+                // If "Enable All Traffic" is on, allow data through but don't auto-whitelist
+                if (enableAllTraffic) {
+                    // Device can send data and appear in graphs, but is not in whitelist
+                    console.log(`Device ${deviceId} sending data (All Traffic Enabled, not whitelisted)`);
                 } else {
-                    console.log(`Already prompted about device ${deviceId}, not showing popup again`);
+                    console.log(`Device ${deviceId} is NOT whitelisted - showing popup`);
+                    // Show whitelist popup if not already shown for this device
+                    if (!promptedDevices.has(deviceId)) {
+                        console.log(`Showing whitelist popup for device: ${deviceId}`);
+                        showWhitelistPopup(deviceId);
+                    } else {
+                        console.log(`Already prompted about device ${deviceId}, not showing popup again`);
+                    }
+                    // Don't return data if device is not whitelisted
+                    console.log(`Device ${deviceId} is not whitelisted, ignoring data and NOT updating graphs`);
+                    return null;
                 }
-                // Don't return data if device is not whitelisted
-                console.log(`Device ${deviceId} is not whitelisted, ignoring data and NOT updating graphs`);
-                return null;
             }
             
             if (!deviceId) {
@@ -408,14 +446,6 @@ async function getSensorData() {
                 rawCo2: co2,
                 rawHumidity: humidity
             };
-        } catch (error) {
-            console.error(`Error fetching from ${apiUrl}:`, error);
-            continue;
-        }
-    }
-    
-    // If all endpoints failed or returned no data
-    return null;
         } catch (error) {
             console.error(`Error fetching from ${apiUrl}:`, error);
             continue; // Try next endpoint
@@ -472,7 +502,8 @@ async function updateDashboard() {
         device.humidity.push(data.rawHumidity);
         
         // For other devices, add null to maintain alignment
-        whitelistedDevices.forEach(id => {
+        const devicesToAlign = getAllDevicesForCharts();
+        devicesToAlign.forEach(id => {
             if (id !== deviceId) {
                 initializeDeviceData(id);
                 const otherDevice = deviceData[id];
@@ -511,10 +542,10 @@ async function updateDashboard() {
         console.log(`✓ New data point added for device ${deviceId} at ${timestamp}`);
     }
     
-    // Update all charts
+    // Update all charts with all device data
     updateAllCharts();
     
-    // Update display values
+    // Update display values (show latest from any device)
     updateDisplayValues();
     
     // Battery alert check
@@ -539,29 +570,42 @@ function updateAllCharts() {
     }
 }
 
-// Update display values (show latest or average)
+// Update display values (show latest from any device)
 function updateDisplayValues() {
     const tempElement = document.getElementById('temperature-value');
     const co2Element = document.getElementById('co2-value');
     
     // Get latest values from all devices
     let latestTemp = null, latestCo2 = null, latestHumidity = null;
+    const devicesToCheck = getAllDevicesForCharts();
     
-    for (const deviceId of whitelistedDevices) {
+    for (const deviceId of devicesToCheck) {
         const device = deviceData[deviceId];
         if (device && device.temperature.length > 0) {
-            const lastTemp = device.temperature[device.temperature.length - 1];
-            const lastCo2 = device.co2[device.co2.length - 1];
-            const lastHumidity = device.humidity[device.humidity.length - 1];
-            
-            if (lastTemp !== null && (!latestTemp || lastTemp > latestTemp)) {
-                latestTemp = lastTemp;
+            // Get the last non-null value
+            for (let i = device.temperature.length - 1; i >= 0; i--) {
+                if (device.temperature[i] !== null) {
+                    if (latestTemp === null || device.temperature[i] > latestTemp) {
+                        latestTemp = device.temperature[i];
+                    }
+                    break;
+                }
             }
-            if (lastCo2 !== null && (!latestCo2 || lastCo2 > latestCo2)) {
-                latestCo2 = lastCo2;
+            for (let i = device.co2.length - 1; i >= 0; i--) {
+                if (device.co2[i] !== null) {
+                    if (latestCo2 === null || device.co2[i] > latestCo2) {
+                        latestCo2 = device.co2[i];
+                    }
+                    break;
+                }
             }
-            if (lastHumidity !== null && (!latestHumidity || lastHumidity > latestHumidity)) {
-                latestHumidity = lastHumidity;
+            for (let i = device.humidity.length - 1; i >= 0; i--) {
+                if (device.humidity[i] !== null) {
+                    if (latestHumidity === null || device.humidity[i] > latestHumidity) {
+                        latestHumidity = device.humidity[i];
+                    }
+                    break;
+                }
             }
         }
     }
@@ -595,28 +639,6 @@ function closeModal() {
     addDeviceModal.classList.add('hidden');
 }
 
-// Event tracking system
-let events = JSON.parse(localStorage.getItem('deviceEvents') || '[]');
-
-function addEvent(type, description, deviceId = null) {
-    const event = {
-        id: Date.now(),
-        type: type,
-        description: description,
-        deviceId: deviceId,
-        timestamp: new Date().toISOString(),
-        displayTime: new Date().toLocaleString()
-    };
-    events.unshift(event); // Add to beginning
-    // Keep only last 100 events
-    if (events.length > 100) {
-        events = events.slice(0, 100);
-    }
-    localStorage.setItem('deviceEvents', JSON.stringify(events));
-    console.log('Event added:', event);
-    return event;
-}
-
 function handleSaveDevice() {
     const code = deviceCodeInput.value.trim();
 
@@ -627,49 +649,68 @@ function handleSaveDevice() {
             return;
         }
         
-        addDeviceToWhitelist(code);
-        addEvent('device_added', `Device ${code} was manually added to whitelist`, code);
-        initializeDeviceData(code);
-        
-        console.log(`Manually added device: ${code}`);
-        modalMessage.textContent = `Success! Device ${code} added to whitelist.`;
-        modalMessage.classList.remove('hidden');
-        
-        // Update charts
-        updateAllCharts();
-        
-        setTimeout(closeModal, 2000); 
-
+        if (addDeviceToWhitelist(code)) {
+            addEvent('device_added', `Device ${code} was manually added to whitelist`, code);
+            console.log(`Manually added device: ${code}`);
+            modalMessage.textContent = `Success! Device ${code} added to whitelist.`;
+            modalMessage.classList.remove('hidden');
+            setTimeout(closeModal, 2000);
+        }
     } else {
         modalMessage.textContent = 'Please enter a device ID.';
         modalMessage.classList.remove('hidden');
     }
 }
 
-// Set up event handlers - ensure elements exist
-if (addDeviceBtn) {
-    addDeviceBtn.addEventListener('click', openModal);
-} else {
-    console.error('Add Device button not found');
-}
+addDeviceBtn.addEventListener('click', openModal);
+closeModalBtn.addEventListener('click', closeModal);
+saveDeviceBtn.addEventListener('click', handleSaveDevice);
 
-if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', closeModal);
-}
-
-if (saveDeviceBtn) {
-    saveDeviceBtn.addEventListener('click', handleSaveDevice);
-}
-
-// View Alerts button (placeholder for now)
-const viewAlertsBtns = document.querySelectorAll('.ghost-btn[type="button"]');
-viewAlertsBtns.forEach(btn => {
-    if (btn.textContent.trim() === 'View Alerts' && !btn.id) {
-        btn.addEventListener('click', () => {
-            alert('View Alerts feature coming soon!');
-        });
+// Enable All Traffic button
+const enableAllTrafficBtn = document.getElementById('enable-all-traffic-btn');
+function updateEnableAllTrafficButton() {
+    if (!enableAllTrafficBtn) return;
+    
+    // Keep border matching the default ghost-btn style (don't override it)
+    // The border should stay as the default: rgba(15, 23, 42, 0.1)
+    
+    if (enableAllTraffic) {
+        enableAllTrafficBtn.textContent = 'Enable All Incoming Traffic (ON)';
+        enableAllTrafficBtn.style.setProperty('background', '#86DEB7', 'important'); // Green background - use 'background' not 'background-color'
+        enableAllTrafficBtn.style.setProperty('color', '#0f172a', 'important');
+    } else {
+        enableAllTrafficBtn.textContent = 'Enable All Incoming Traffic (OFF)';
+        enableAllTrafficBtn.style.setProperty('background', '#ff6b6b', 'important'); // Red background - use 'background' not 'background-color'
+        enableAllTrafficBtn.style.setProperty('color', '#ffffff', 'important');
     }
-});
+    
+    console.log('Button updated - State:', enableAllTraffic ? 'ON (green)' : 'OFF (red)', 'Computed background:', window.getComputedStyle(enableAllTrafficBtn).background);
+}
+
+if (enableAllTrafficBtn) {
+    // Initialize button state - use setTimeout to ensure DOM is fully ready
+    setTimeout(() => {
+        updateEnableAllTrafficButton();
+        console.log('Button initialized, enableAllTraffic:', enableAllTraffic);
+    }, 100);
+    
+    enableAllTrafficBtn.addEventListener('click', () => {
+        enableAllTraffic = !enableAllTraffic;
+        localStorage.setItem('enableAllTraffic', JSON.stringify(enableAllTraffic));
+        updateEnableAllTrafficButton();
+        console.log('Button toggled, enableAllTraffic:', enableAllTraffic, 'Background should be:', enableAllTraffic ? 'green' : 'red');
+        
+        if (enableAllTraffic) {
+            addEvent('system', 'All incoming traffic enabled - devices will be auto-whitelisted', null);
+            console.log('All incoming traffic enabled');
+        } else {
+            addEvent('system', 'All incoming traffic disabled - manual whitelisting required', null);
+            console.log('All incoming traffic disabled');
+        }
+    });
+} else {
+    console.error('enable-all-traffic-btn not found');
+}
 
 window.addEventListener('click', (event) => {
     if (event.target === addDeviceModal) {
@@ -759,33 +800,16 @@ const buildingLevels = [
 
 function initializeFacilityMap() {
     const level = buildingLevels[0];
-    if (level && level.sensors) {
-        console.log(`Initializing facility map with ${level.sensors.length} placeholder sensors`);
+    if (level) {
         renderSensors(level.sensors);
         renderSummary(level.sensors);
-    } else {
-        console.error('No level or sensors found for facility map');
     }
 }
 
 function renderSensors(sensors) {
-    // Re-query buildingGrid to ensure it exists
-    const buildingGridEl = document.getElementById('buildingGrid');
-    if (!buildingGridEl) {
-        console.error('buildingGrid element not found in renderSensors');
-        return;
-    }
-    
-    if (!sensors || sensors.length === 0) {
-        console.warn('No sensors provided to renderSensors');
-        return;
-    }
-    
-    console.log(`Rendering ${sensors.length} placeholder sensors on facility map`);
-    
     currentSensors = sensors;
     selectedSensorName = null;
-    buildingGridEl.innerHTML = '';
+    buildingGrid.innerHTML = '';
     
     const baseSize = Math.max(8, 24 - (sensors.length * 0.2));
     document.documentElement.style.setProperty('--esp-size', `${baseSize}px`);
@@ -809,25 +833,17 @@ function renderSensors(sensors) {
 
         point.addEventListener('click', () => handleSensorClick(sensor.name));
 
-        buildingGridEl.appendChild(point);
+        buildingGrid.appendChild(point);
     });
-    
-    console.log(`Successfully rendered ${sensors.length} sensor points on the map`);
     updateDistanceLabels();
     updateRelativePanel();
 }
 
 function renderSummary(sensors) {
-    const statusSummaryEl = document.getElementById('statusSummary');
-    if (!statusSummaryEl) {
-        console.error('statusSummary element not found in renderSummary');
-        return;
-    }
-    
     const activeCount = sensors.filter((sensor) => sensor.status === 'active').length;
     const inactiveCount = sensors.length - activeCount;
 
-    statusSummaryEl.innerHTML = `
+    statusSummary.innerHTML = `
         <div class="summary-card">
             <span>Active</span>
             <strong>${activeCount}</strong>
@@ -860,9 +876,6 @@ function handleSensorClick(sensorName) {
 }
 
 function updateDistanceLabels() {
-    const buildingGridEl = document.getElementById('buildingGrid');
-    if (!buildingGridEl) return;
-    
     const selected = currentSensors.find((sensor) => sensor.name === selectedSensorName);
     document.querySelectorAll('.distance-label').forEach((label) => {
         label.classList.remove('visible');
@@ -871,7 +884,7 @@ function updateDistanceLabels() {
     if (!selected) return;
 
     currentSensors.forEach((sensor) => {
-        const point = buildingGridEl.querySelector(`.esp-point[data-sensor-name="${sensor.name}"]`);
+        const point = buildingGrid.querySelector(`.esp-point[data-sensor-name="${sensor.name}"]`);
         if (!point) return;
         const label = point.querySelector('.distance-label');
         if (!label) return;
@@ -895,14 +908,11 @@ function formatMeters(value) {
 }
 
 function updateRelativePanel() {
-    const relativeDistancesEl = document.getElementById('relativeDistances');
-    if (!relativeDistancesEl) return;
-    
-    relativeDistancesEl.innerHTML = '';
+    relativeDistances.innerHTML = '';
     const selected = currentSensors.find((sensor) => sensor.name === selectedSensorName);
 
     if (!selected) {
-        relativeDistancesEl.innerHTML = '<div class="relative-placeholder">Select a sensor on the map to compare.</div>';
+        relativeDistances.innerHTML = '<div class="relative-placeholder">Select a sensor on the map to compare.</div>';
         return;
     }
 
@@ -921,51 +931,16 @@ function updateRelativePanel() {
             const row = document.createElement('div');
             row.className = 'relative-item';
             row.innerHTML = `<span>${entry.name}</span><strong>${entry.label}</strong>`;
-            relativeDistancesEl.appendChild(row);
+            relativeDistances.appendChild(row);
         });
 }
 
-// Initialize facility map when DOM is ready
-function initializePage() {
-    // Re-query DOM elements to ensure they exist
-    const buildingGridEl = document.getElementById('buildingGrid');
-    const statusSummaryEl = document.getElementById('statusSummary');
-    const relativeDistancesEl = document.getElementById('relativeDistances');
-    
-    if (buildingGridEl && statusSummaryEl && relativeDistancesEl) {
-        initializeFacilityMap();
-        console.log('Facility map initialized successfully');
-    } else {
-        console.warn('Facility map elements not found, retrying...', {
-            buildingGrid: !!buildingGridEl,
-            statusSummary: !!statusSummaryEl,
-            relativeDistances: !!relativeDistancesEl
-        });
-        // Retry after a short delay
-        setTimeout(() => {
-            const retryBuildingGrid = document.getElementById('buildingGrid');
-            const retryStatusSummary = document.getElementById('statusSummary');
-            const retryRelativeDistances = document.getElementById('relativeDistances');
-            if (retryBuildingGrid && retryStatusSummary && retryRelativeDistances) {
-                initializeFacilityMap();
-                console.log('Facility map initialized on retry');
-            } else {
-                console.error('Failed to initialize facility map - elements still not found');
-            }
-        }, 500);
-    }
-    
-    // Start polling for sensor data
-    const POLL_INTERVAL = 1000;
-    setInterval(updateDashboard, POLL_INTERVAL);
-    updateDashboard();
+if (buildingGrid && statusSummary && relativeDistances) {
+    initializeFacilityMap();
 }
 
-// Wait for DOM to be ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializePage);
-} else {
-    // DOM is already ready
-    initializePage();
-}
+const POLL_INTERVAL = 1000;
+setInterval(updateDashboard, POLL_INTERVAL);
+
+updateDashboard();
 
