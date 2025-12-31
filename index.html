@@ -162,6 +162,19 @@
             <p id="modal-message" class="hidden"></p>
         </div>
     </div>
+
+    <div id="whitelist-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-button" id="whitelist-close-btn">&times;</span>
+            <h2>New Device Detected</h2>
+            <p id="whitelist-device-info">A new device is trying to send data.</p>
+            <p style="margin: 15px 0; color: rgba(15, 23, 42, 0.7);">Do you want to whitelist this device?</p>
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button id="whitelist-yes-btn" style="flex: 1;">Yes, Whitelist</button>
+                <button id="whitelist-no-btn" style="flex: 1; background-color: #f0f0f0; color: var(--ink);">No, Ignore</button>
+            </div>
+        </div>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>

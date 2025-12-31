@@ -5,6 +5,18 @@ const labels = [];
 
 const co2AlertThreshold = 800;
 
+// Device whitelist management
+let whitelistedDevices = JSON.parse(localStorage.getItem('whitelistedDevices') || '[]');
+let pendingDevice = null;
+let promptedDevices = new Set(JSON.parse(localStorage.getItem('promptedDevices') || '[]'));
+
+// Whitelist modal elements
+const whitelistModal = document.getElementById('whitelist-modal');
+const whitelistCloseBtn = document.getElementById('whitelist-close-btn');
+const whitelistYesBtn = document.getElementById('whitelist-yes-btn');
+const whitelistNoBtn = document.getElementById('whitelist-no-btn');
+const whitelistDeviceInfo = document.getElementById('whitelist-device-info');
+
 const tempCtx = document.getElementById('temperature-chart').getContext('2d');
 const co2Ctx = document.getElementById('co2-chart').getContext('2d');
 const humidityCanvas = document.getElementById('humidity-chart');
@@ -110,6 +122,69 @@ function isBatteryLow() {
     return Math.random() < 0.1; 
 }
 
+function isDeviceWhitelisted(deviceId) {
+    if (!deviceId) return false;
+    return whitelistedDevices.includes(deviceId);
+}
+
+function addDeviceToWhitelist(deviceId) {
+    if (deviceId && !whitelistedDevices.includes(deviceId)) {
+        whitelistedDevices.push(deviceId);
+        localStorage.setItem('whitelistedDevices', JSON.stringify(whitelistedDevices));
+        console.log(`Device ${deviceId} added to whitelist`);
+    }
+}
+
+// Allow users to manually whitelist devices (for testing or if they missed the popup)
+function removeFromPrompted(deviceId) {
+    promptedDevices.delete(deviceId);
+    localStorage.setItem('promptedDevices', JSON.stringify(Array.from(promptedDevices)));
+}
+
+function showWhitelistPopup(deviceId) {
+    if (!deviceId) return;
+    
+    // Only show popup if we haven't prompted about this device before
+    if (promptedDevices.has(deviceId)) {
+        return;
+    }
+    
+    pendingDevice = deviceId;
+    promptedDevices.add(deviceId);
+    localStorage.setItem('promptedDevices', JSON.stringify(Array.from(promptedDevices)));
+    whitelistDeviceInfo.textContent = `Device ID: ${deviceId}`;
+    whitelistModal.classList.remove('hidden');
+}
+
+function closeWhitelistModal() {
+    whitelistModal.classList.add('hidden');
+    pendingDevice = null;
+}
+
+// Whitelist modal event handlers
+whitelistYesBtn.addEventListener('click', () => {
+    if (pendingDevice) {
+        addDeviceToWhitelist(pendingDevice);
+        closeWhitelistModal();
+        // Immediately refresh dashboard to show data from newly whitelisted device
+        setTimeout(() => updateDashboard(), 100);
+    }
+});
+
+whitelistNoBtn.addEventListener('click', () => {
+    closeWhitelistModal();
+});
+
+whitelistCloseBtn.addEventListener('click', () => {
+    closeWhitelistModal();
+});
+
+window.addEventListener('click', (event) => {
+    if (event.target === whitelistModal) {
+        closeWhitelistModal();
+    }
+});
+
 async function getSensorData() {
     // Try HTTP bridge endpoint first (where ESP32 gateway sends data)
     const endpoints = ['/api/ingest-http-bridge', '/api/ingest'];
@@ -133,11 +208,26 @@ async function getSensorData() {
                 continue; // Try next endpoint
             }
 
-            const { temperature, co2, humidity } = data.reading;
+            const reading = data.reading;
+            const deviceId = reading.device_id || reading.mac;
             
-            console.log(`Received sensor data - Temp: ${temperature}°C, CO2: ${co2}ppm, Humidity: ${humidity}%`);
+            // Check if device is whitelisted
+            if (deviceId && !isDeviceWhitelisted(deviceId)) {
+                // Show whitelist popup if not already shown for this device
+                if (pendingDevice !== deviceId && whitelistModal.classList.contains('hidden')) {
+                    showWhitelistPopup(deviceId);
+                }
+                // Don't return data if device is not whitelisted
+                console.log(`Device ${deviceId} is not whitelisted, ignoring data`);
+                return null;
+            }
+
+            const { temperature, co2, humidity } = reading;
+            
+            console.log(`Received sensor data from whitelisted device ${deviceId} - Temp: ${temperature}°C, CO2: ${co2}ppm, Humidity: ${humidity}%`);
 
             return {
+                deviceId: deviceId,
                 temperature: `${temperature.toFixed(1)} °C`,
                 humidity: `${humidity.toFixed(1)} %`,
                 co2: `${co2.toFixed(0)} ppm`,
@@ -165,6 +255,11 @@ async function getSensorData() {
 
 async function updateDashboard() {
     const data = await getSensorData();
+
+    // If data is null, device is not whitelisted - don't update dashboard
+    if (data === null) {
+        return;
+    }
 
     console.log('Updating dashboard with:', data);
 
