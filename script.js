@@ -1,9 +1,36 @@
-const temperatureData = [];
-const co2Data = [];
-const humidityData = [];
-const labels = [];
+// Data storage per device
+const deviceData = {}; // { deviceId: { temperature: [], co2: [], humidity: [], labels: [] } }
+const labels = []; // Shared time labels across all devices
 
 const co2AlertThreshold = 800;
+
+// Color palette for different devices
+const deviceColors = [
+    'rgb(75, 192, 192)',   // Teal
+    'rgb(255, 99, 132)',   // Red
+    'rgb(134, 222, 183)',  // Green
+    'rgb(255, 159, 64)',   // Orange
+    'rgb(153, 102, 255)',  // Purple
+    'rgb(54, 162, 235)',   // Blue
+    'rgb(255, 205, 86)',   // Yellow
+    'rgb(201, 203, 207)'   // Grey
+];
+
+function getDeviceColor(deviceId) {
+    const index = whitelistedDevices.indexOf(deviceId);
+    return deviceColors[index % deviceColors.length];
+}
+
+function initializeDeviceData(deviceId) {
+    if (!deviceData[deviceId]) {
+        deviceData[deviceId] = {
+            temperature: [],
+            co2: [],
+            humidity: [],
+            lastUpdate: null
+        };
+    }
+}
 
 // Device whitelist management
 let whitelistedDevices = JSON.parse(localStorage.getItem('whitelistedDevices') || '[]');
@@ -42,7 +69,6 @@ const addDeviceBtn = document.getElementById('add-device-btn');
 const closeModalBtn = document.querySelector('.close-button');
 const saveDeviceBtn = document.getElementById('save-device-btn');
 const deviceCodeInput = document.getElementById('device-code-input');
-const roomNameInput = document.getElementById('room-name-input');
 const modalMessage = document.getElementById('modal-message');
 const buildingGrid = document.getElementById('buildingGrid');
 const statusSummary = document.getElementById('statusSummary');
@@ -52,18 +78,46 @@ const co2Card = document.getElementById('co2-card');
 let currentSensors = [];
 let selectedSensorName = null;
 
+// Function to update chart datasets based on whitelisted devices
+function updateChartDatasets(chart, dataType) {
+    const datasets = whitelistedDevices.map(deviceId => {
+        initializeDeviceData(deviceId);
+        const device = deviceData[deviceId];
+        const deviceDataArray = device[dataType] || [];
+        
+        // Ensure data array matches labels length
+        const alignedData = [];
+        for (let i = 0; i < labels.length; i++) {
+            alignedData.push(deviceDataArray[i] !== undefined ? deviceDataArray[i] : null);
+        }
+        
+        return {
+            label: `${deviceId}`,
+            data: alignedData,
+            borderColor: getDeviceColor(deviceId),
+            tension: 0.1,
+            fill: false,
+            spanGaps: true // Allow gaps in data
+        };
+    });
+    
+    chart.data.datasets = datasets;
+    chart.data.labels = labels;
+}
+
 const tempChart = new Chart(tempCtx, {
     type: 'line',
     data: {
         labels: labels,
-        datasets: [{
-            label: 'Temperature (°C)',
-            data: temperatureData,
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.1
-        }]
+        datasets: []
     },
     options: {
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
         scales: {
             y: {
                 beginAtZero: false,
@@ -86,14 +140,15 @@ const co2Chart = new Chart(co2Ctx, {
     type: 'line',
     data: {
         labels: labels,
-        datasets: [{
-            label: 'CO₂ Level (ppm)',
-            data: co2Data,
-            borderColor: 'rgb(255, 99, 132)',
-            tension: 0.1
-        }]
+        datasets: []
     },
     options: {
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
         scales: {
             y: {
                 beginAtZero: false,
@@ -110,14 +165,15 @@ const humidityChart = humidityCtx ? new Chart(humidityCtx, {
     type: 'line',
     data: {
         labels: labels,
-        datasets: [{
-            label: 'Humidity (%)',
-            data: humidityData,
-            borderColor: 'rgb(134, 222, 183)',
-            tension: 0.2
-        }]
+        datasets: []
     },
     options: {
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
         scales: {
             y: {
                 beginAtZero: false,
@@ -145,8 +201,11 @@ function addDeviceToWhitelist(deviceId) {
     if (deviceId && !whitelistedDevices.includes(deviceId)) {
         whitelistedDevices.push(deviceId);
         localStorage.setItem('whitelistedDevices', JSON.stringify(whitelistedDevices));
+        initializeDeviceData(deviceId);
         console.log(`Device ${deviceId} added to whitelist`);
+        return true;
     }
+    return false;
 }
 
 // Allow users to manually whitelist devices (for testing or if they missed the popup)
@@ -186,20 +245,25 @@ if (whitelistYesBtn && whitelistNoBtn && whitelistCloseBtn && whitelistModal) {
     whitelistYesBtn.addEventListener('click', () => {
         if (pendingDevice) {
             console.log(`User clicked Yes - whitelisting device: ${pendingDevice}`);
-            addDeviceToWhitelist(pendingDevice);
+            if (addDeviceToWhitelist(pendingDevice)) {
+                addEvent('device_added', `Device ${pendingDevice} was whitelisted via popup`, pendingDevice);
+            }
             closeWhitelistModal();
             // Immediately refresh dashboard to show data from newly whitelisted device
+            updateAllCharts();
             setTimeout(() => updateDashboard(), 100);
         }
     });
 
     whitelistNoBtn.addEventListener('click', () => {
         console.log(`User clicked No - NOT whitelisting device: ${pendingDevice}`);
+        addEvent('device_rejected', `Device ${pendingDevice} was rejected`, pendingDevice);
         closeWhitelistModal();
     });
 
     whitelistCloseBtn.addEventListener('click', () => {
         console.log(`User closed popup - NOT whitelisting device: ${pendingDevice}`);
+        addEvent('device_rejected', `Device ${pendingDevice} popup was closed`, pendingDevice);
         closeWhitelistModal();
     });
 
@@ -210,6 +274,69 @@ if (whitelistYesBtn && whitelistNoBtn && whitelistCloseBtn && whitelistModal) {
     });
 } else {
     console.error('Cannot set up whitelist modal event handlers - elements missing');
+}
+
+// Enable All Devices button
+const enableAllDevicesBtn = document.getElementById('enable-all-devices-btn');
+if (enableAllDevicesBtn) {
+    enableAllDevicesBtn.addEventListener('click', async () => {
+        // Get all devices that have sent data but aren't whitelisted
+        const allKnownDevices = new Set();
+        
+        // Check localStorage for any stored device IDs from events
+        const storedEvents = JSON.parse(localStorage.getItem('deviceEvents') || '[]');
+        storedEvents.forEach(event => {
+            if (event.deviceId) {
+                allKnownDevices.add(event.deviceId);
+            }
+        });
+        
+        // Also check prompted devices
+        promptedDevices.forEach(deviceId => {
+            allKnownDevices.add(deviceId);
+        });
+        
+        // Check current API for any device sending data
+        try {
+            const endpoints = ['/api/ingest-http-bridge', '/api/ingest'];
+            for (const apiUrl of endpoints) {
+                const response = await fetch(apiUrl + '?t=' + Date.now(), {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.ok && data.hasReading && data.reading) {
+                        const deviceId = data.reading.device_id || data.reading.mac;
+                        if (deviceId) {
+                            allKnownDevices.add(deviceId);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error checking for devices:', error);
+        }
+        
+        let addedCount = 0;
+        allKnownDevices.forEach(deviceId => {
+            if (!isDeviceWhitelisted(deviceId)) {
+                if (addDeviceToWhitelist(deviceId)) {
+                    addEvent('device_added', `Device ${deviceId} was auto-whitelisted via "Enable All Devices"`, deviceId);
+                    addedCount++;
+                }
+            }
+        });
+        
+        if (addedCount > 0) {
+            alert(`Enabled ${addedCount} device(s). All devices are now whitelisted.`);
+            updateAllCharts();
+            // Refresh dashboard
+            setTimeout(() => updateDashboard(), 100);
+        } else {
+            alert('No new devices to enable. All known devices are already whitelisted.');
+        }
+    });
 }
 
 async function getSensorData() {
@@ -274,6 +401,14 @@ async function getSensorData() {
             };
         } catch (error) {
             console.error(`Error fetching from ${apiUrl}:`, error);
+            continue;
+        }
+    }
+    
+    // If all endpoints failed or returned no data
+    return null;
+        } catch (error) {
+            console.error(`Error fetching from ${apiUrl}:`, error);
             continue; // Try next endpoint
         }
     }
@@ -290,87 +425,147 @@ async function getSensorData() {
     };
 }
 
+// Track last received data per device
+const lastReceivedDataPerDevice = {};
+
 async function updateDashboard() {
     const data = await getSensorData();
 
     // If data is null, device is not whitelisted - don't update dashboard
-    if (data === null) {
-        console.log('updateDashboard: Data is null (device not whitelisted), skipping dashboard update');
+    if (data === null || !data.deviceId) {
+        console.log('updateDashboard: Data is null or no deviceId, skipping dashboard update');
+        // Still update charts in case other devices have data
+        updateAllCharts();
         return;
     }
 
-    console.log('Updating dashboard with:', data);
+    const deviceId = data.deviceId;
+    initializeDeviceData(deviceId);
+    const device = deviceData[deviceId];
+    
+    // Check if this is new data for this device
+    const lastData = lastReceivedDataPerDevice[deviceId];
+    const isNewData = !lastData || 
+                     lastData.temperature !== data.rawTemp || 
+                     lastData.co2 !== data.rawCo2 || 
+                     lastData.humidity !== data.rawHumidity;
+    
+    if (isNewData && (data.rawTemp !== 0 || data.rawCo2 !== 0 || data.rawHumidity !== 0)) {
+        const now = new Date();
+        const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+        
+        // Add timestamp to shared labels
+        labels.push(timestamp);
+        
+        // Add data for this device
+        device.temperature.push(data.rawTemp);
+        device.co2.push(data.rawCo2);
+        device.humidity.push(data.rawHumidity);
+        
+        // For other devices, add null to maintain alignment
+        whitelistedDevices.forEach(id => {
+            if (id !== deviceId) {
+                initializeDeviceData(id);
+                const otherDevice = deviceData[id];
+                // Pad with null to match length
+                while (otherDevice.temperature.length < labels.length - 1) {
+                    otherDevice.temperature.push(null);
+                    otherDevice.co2.push(null);
+                    otherDevice.humidity.push(null);
+                }
+                // Add null for this timestamp
+                otherDevice.temperature.push(null);
+                otherDevice.co2.push(null);
+                otherDevice.humidity.push(null);
+            }
+        });
+        
+        lastReceivedDataPerDevice[deviceId] = {
+            temperature: data.rawTemp,
+            co2: data.rawCo2,
+            humidity: data.rawHumidity,
+            timestamp: timestamp
+        };
+        
+        const maxPoints = 20;
+        if (labels.length > maxPoints) {
+            labels.shift();
+            Object.keys(deviceData).forEach(id => {
+                if (deviceData[id].temperature.length > 0) {
+                    deviceData[id].temperature.shift();
+                    deviceData[id].co2.shift();
+                    deviceData[id].humidity.shift();
+                }
+            });
+        }
+        
+        console.log(`✓ New data point added for device ${deviceId} at ${timestamp}`);
+    }
+    
+    // Update all charts
+    updateAllCharts();
+    
+    // Update display values
+    updateDisplayValues();
+}
 
+function updateAllCharts() {
+    updateChartDatasets(tempChart, 'temperature');
+    updateChartDatasets(co2Chart, 'co2');
+    if (humidityChart) {
+        updateChartDatasets(humidityChart, 'humidity');
+    }
+    
+    tempChart.update('none');
+    co2Chart.update('none');
+    if (humidityChart) {
+        humidityChart.update('none');
+    }
+}
+
+// Update display values (show latest or average)
+function updateDisplayValues() {
     const tempElement = document.getElementById('temperature-value');
     const co2Element = document.getElementById('co2-value');
     
-    if (tempElement) {
-        tempElement.textContent = data.temperature;
-        console.log(`Temperature display updated to: ${data.temperature}`);
+    // Get latest values from all devices
+    let latestTemp = null, latestCo2 = null, latestHumidity = null;
+    
+    for (const deviceId of whitelistedDevices) {
+        const device = deviceData[deviceId];
+        if (device && device.temperature.length > 0) {
+            const lastTemp = device.temperature[device.temperature.length - 1];
+            const lastCo2 = device.co2[device.co2.length - 1];
+            const lastHumidity = device.humidity[device.humidity.length - 1];
+            
+            if (lastTemp !== null && (!latestTemp || lastTemp > latestTemp)) {
+                latestTemp = lastTemp;
+            }
+            if (lastCo2 !== null && (!latestCo2 || lastCo2 > latestCo2)) {
+                latestCo2 = lastCo2;
+            }
+            if (lastHumidity !== null && (!latestHumidity || lastHumidity > latestHumidity)) {
+                latestHumidity = lastHumidity;
+            }
+        }
     }
     
-    if (co2Element) {
-        co2Element.textContent = data.co2;
+    if (tempElement && latestTemp !== null) {
+        tempElement.textContent = `${latestTemp.toFixed(1)} °C`;
     }
     
-    if (humidityValueEl) {
-        humidityValueEl.textContent = data.humidity;
+    if (co2Element && latestCo2 !== null) {
+        co2Element.textContent = `${latestCo2.toFixed(0)} ppm`;
     }
-
-    if (data.rawCo2 > co2AlertThreshold) {
+    
+    if (humidityValueEl && latestHumidity !== null) {
+        humidityValueEl.textContent = `${latestHumidity.toFixed(1)} %`;
+    }
+    
+    if (latestCo2 !== null && latestCo2 > co2AlertThreshold) {
         co2Card.classList.add('alert');
     } else {
         co2Card.classList.remove('alert');
-    }
-
-    if (isBatteryLow()) {
-        batteryAlert.classList.remove('hidden');
-    } else {
-        batteryAlert.classList.add('hidden');
-    }
-
-    if (data.rawTemp !== null && data.rawCo2 !== null && data.rawHumidity !== null) {
-        const isRealData = data.rawTemp !== 0 || data.rawCo2 !== 0 || data.rawHumidity !== 0;
-        
-        const isNewData = lastReceivedData.temperature !== data.rawTemp || 
-                         lastReceivedData.co2 !== data.rawCo2 || 
-                         lastReceivedData.humidity !== data.rawHumidity;
-        
-        if (isRealData && isNewData) {
-            temperatureData.push(data.rawTemp);
-            co2Data.push(data.rawCo2);
-            humidityData.push(data.rawHumidity);
-
-            const now = new Date();
-            const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-            labels.push(timestamp);
-
-            lastReceivedData = {
-                temperature: data.rawTemp,
-                co2: data.rawCo2,
-                humidity: data.rawHumidity,
-                timestamp: timestamp
-            };
-
-            const maxPoints = 20;
-            if (labels.length > maxPoints) {
-                temperatureData.shift();
-                co2Data.shift();
-                humidityData.shift();
-                labels.shift();
-            }
-
-            tempChart.update('none');
-            co2Chart.update('none');
-            if (humidityChart) {
-                humidityChart.update('none');
-            }
-            
-            console.log(`✓ New data point added to graphs at ${timestamp} - Temp: ${data.rawTemp}°C, CO2: ${data.rawCo2}ppm, Humidity: ${data.rawHumidity}%`);
-        } else if (!isRealData) {
-            console.log('No real sensor data yet (zeros received), graphs not updated');
-        } else if (!isNewData) {
-        }
     }
 }
 
@@ -378,26 +573,59 @@ function openModal() {
     addDeviceModal.classList.remove('hidden');
     modalMessage.classList.add('hidden');
     deviceCodeInput.value = '';
-    roomNameInput.value = '';
 }
 
 function closeModal() {
     addDeviceModal.classList.add('hidden');
 }
 
+// Event tracking system
+let events = JSON.parse(localStorage.getItem('deviceEvents') || '[]');
+
+function addEvent(type, description, deviceId = null) {
+    const event = {
+        id: Date.now(),
+        type: type,
+        description: description,
+        deviceId: deviceId,
+        timestamp: new Date().toISOString(),
+        displayTime: new Date().toLocaleString()
+    };
+    events.unshift(event); // Add to beginning
+    // Keep only last 100 events
+    if (events.length > 100) {
+        events = events.slice(0, 100);
+    }
+    localStorage.setItem('deviceEvents', JSON.stringify(events));
+    console.log('Event added:', event);
+    return event;
+}
+
 function handleSaveDevice() {
     const code = deviceCodeInput.value.trim();
-    const roomName = roomNameInput.value.trim();
 
-    if (code && roomName) {
-        console.log(`Saving new device: Code=${code}, Room=${roomName}`);
-        modalMessage.textContent = `✅ Success! Device ${code} added for ${roomName}.`;
+    if (code) {
+        if (isDeviceWhitelisted(code)) {
+            modalMessage.textContent = 'Device is already whitelisted.';
+            modalMessage.classList.remove('hidden');
+            return;
+        }
+        
+        addDeviceToWhitelist(code);
+        addEvent('device_added', `Device ${code} was manually added to whitelist`, code);
+        initializeDeviceData(code);
+        
+        console.log(`Manually added device: ${code}`);
+        modalMessage.textContent = `Success! Device ${code} added to whitelist.`;
         modalMessage.classList.remove('hidden');
+        
+        // Update charts
+        updateAllCharts();
         
         setTimeout(closeModal, 2000); 
 
     } else {
-        modalMessage.textContent = '❌ Please enter both a device code and a room name.';
+        modalMessage.textContent = 'Please enter a device ID.';
         modalMessage.classList.remove('hidden');
     }
 }

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - Multi-Sensor Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark">BN</div>
+                <div>
+                    <p class="brand-title">Building Monitor</p>
+                    <p class="brand-subtitle">Environmental Network</p>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="index.html#home" class="nav-link">Home</a>
+                <a href="about.html" class="nav-link">About Us</a>
+                <a href="contact.html" class="nav-link">Contact</a>
+            </nav>
+            <div class="account-actions">
+                <a href="notifications.html" class="ghost-btn" style="text-decoration: none; display: inline-block;">Notifications</a>
+                <button type="button" class="account-btn">
+                    <span class="avatar">IA</span>
+                    <span>Account</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="content">
+            <section class="hero-card">
+                <div class="hero-text">
+                    <p class="eyebrow">System Events & Device Management</p>
+                    <h1>Notifications</h1>
+                    <p class="hero-body">
+                        View all system events and manage your whitelisted devices.
+                    </p>
+                </div>
+            </section>
+
+            <div class="quadrant-grid" style="grid-template-columns: 1fr; grid-template-rows: auto;">
+                <div class="quadrant">
+                    <section class="card">
+                        <h2>Whitelisted Devices</h2>
+                        <div id="whitelisted-devices-list" style="margin-top: 20px;">
+                            <p>Loading devices...</p>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <button id="clear-whitelist-btn" class="ghost-btn" style="color: #d97706;">Clear All Whitelist</button>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="quadrant">
+                    <section class="card">
+                        <h2>Event Log</h2>
+                        <div id="event-log" style="margin-top: 20px; max-height: 600px; overflow-y: auto;">
+                            <p>Loading events...</p>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <button id="clear-events-btn" class="ghost-btn" style="color: #d97706;">Clear Event Log</button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="notifications.js"></script>
+</body>
+</html>
+

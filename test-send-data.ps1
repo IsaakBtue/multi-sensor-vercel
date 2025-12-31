@@ -2,7 +2,7 @@
 # Usage: .\test-send-data.ps1
 
 $uri = "https://multi-sensor-vercel.vercel.app/api/ingest-http-bridge"
-$deviceId = "AA:BB:CC:DD:EE:FF"
+$deviceId = "AA:BB:CC:DD:EE:FE"
 
 Write-Host "Starting to send 10 data points every 1 second..." -ForegroundColor Green
 Write-Host "Device ID: $deviceId" -ForegroundColor Cyan

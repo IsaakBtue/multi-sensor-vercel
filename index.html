@@ -23,7 +23,7 @@
                 <a href="contact.html" class="nav-link">Contact</a>
             </nav>
             <div class="account-actions">
-                <button type="button" class="ghost-btn">Notifications</button>
+                <a href="notifications.html" class="ghost-btn" style="text-decoration: none; display: inline-block;">Notifications</a>
                 <button type="button" class="account-btn">
                     <span class="avatar">IA</span>
                     <span>Account</span>
@@ -42,6 +42,7 @@
                     <div class="primary-actions">
                         <button id="add-device-btn">Add New Device</button>
                         <button class="ghost-btn" type="button">View Alerts</button>
+                        <button id="enable-all-devices-btn" class="ghost-btn" type="button">Enable All Devices</button>
                     </div>
                 </div>
                 <div class="hero-meta">
@@ -154,11 +155,10 @@
     <div id="add-device-modal" class="modal hidden">
         <div class="modal-content">
             <span class="close-button">&times;</span>
-            <h2>Enter New Device Code</h2>
-            <p>Please enter the device code found on your new sensor.</p>
-            <input type="text" id="device-code-input" placeholder="e.g., 1A2B3C4D">
-            <input type="text" id="room-name-input" placeholder="e.g., Server Room">
-            <button id="save-device-btn">Save Device</button>
+            <h2>Add Device ID</h2>
+            <p>Enter the device ID (MAC address) to manually whitelist a device.</p>
+            <input type="text" id="device-code-input" placeholder="e.g., AA:BB:CC:DD:EE:FF">
+            <button id="save-device-btn">Add Device</button>
             <p id="modal-message" class="hidden"></p>
         </div>
     </div>
