@@ -759,16 +759,33 @@ const buildingLevels = [
 
 function initializeFacilityMap() {
     const level = buildingLevels[0];
-    if (level) {
+    if (level && level.sensors) {
+        console.log(`Initializing facility map with ${level.sensors.length} placeholder sensors`);
         renderSensors(level.sensors);
         renderSummary(level.sensors);
+    } else {
+        console.error('No level or sensors found for facility map');
     }
 }
 
 function renderSensors(sensors) {
+    // Re-query buildingGrid to ensure it exists
+    const buildingGridEl = document.getElementById('buildingGrid');
+    if (!buildingGridEl) {
+        console.error('buildingGrid element not found in renderSensors');
+        return;
+    }
+    
+    if (!sensors || sensors.length === 0) {
+        console.warn('No sensors provided to renderSensors');
+        return;
+    }
+    
+    console.log(`Rendering ${sensors.length} placeholder sensors on facility map`);
+    
     currentSensors = sensors;
     selectedSensorName = null;
-    buildingGrid.innerHTML = '';
+    buildingGridEl.innerHTML = '';
     
     const baseSize = Math.max(8, 24 - (sensors.length * 0.2));
     document.documentElement.style.setProperty('--esp-size', `${baseSize}px`);
@@ -792,17 +809,25 @@ function renderSensors(sensors) {
 
         point.addEventListener('click', () => handleSensorClick(sensor.name));
 
-        buildingGrid.appendChild(point);
+        buildingGridEl.appendChild(point);
     });
+    
+    console.log(`Successfully rendered ${sensors.length} sensor points on the map`);
     updateDistanceLabels();
     updateRelativePanel();
 }
 
 function renderSummary(sensors) {
+    const statusSummaryEl = document.getElementById('statusSummary');
+    if (!statusSummaryEl) {
+        console.error('statusSummary element not found in renderSummary');
+        return;
+    }
+    
     const activeCount = sensors.filter((sensor) => sensor.status === 'active').length;
     const inactiveCount = sensors.length - activeCount;
 
-    statusSummary.innerHTML = `
+    statusSummaryEl.innerHTML = `
         <div class="summary-card">
             <span>Active</span>
             <strong>${activeCount}</strong>
@@ -835,6 +860,9 @@ function handleSensorClick(sensorName) {
 }
 
 function updateDistanceLabels() {
+    const buildingGridEl = document.getElementById('buildingGrid');
+    if (!buildingGridEl) return;
+    
     const selected = currentSensors.find((sensor) => sensor.name === selectedSensorName);
     document.querySelectorAll('.distance-label').forEach((label) => {
         label.classList.remove('visible');
@@ -843,7 +871,7 @@ function updateDistanceLabels() {
     if (!selected) return;
 
     currentSensors.forEach((sensor) => {
-        const point = buildingGrid.querySelector(`.esp-point[data-sensor-name="${sensor.name}"]`);
+        const point = buildingGridEl.querySelector(`.esp-point[data-sensor-name="${sensor.name}"]`);
         if (!point) return;
         const label = point.querySelector('.distance-label');
         if (!label) return;
@@ -867,11 +895,14 @@ function formatMeters(value) {
 }
 
 function updateRelativePanel() {
-    relativeDistances.innerHTML = '';
+    const relativeDistancesEl = document.getElementById('relativeDistances');
+    if (!relativeDistancesEl) return;
+    
+    relativeDistancesEl.innerHTML = '';
     const selected = currentSensors.find((sensor) => sensor.name === selectedSensorName);
 
     if (!selected) {
-        relativeDistances.innerHTML = '<div class="relative-placeholder">Select a sensor on the map to compare.</div>';
+        relativeDistancesEl.innerHTML = '<div class="relative-placeholder">Select a sensor on the map to compare.</div>';
         return;
     }
 
@@ -890,22 +921,38 @@ function updateRelativePanel() {
             const row = document.createElement('div');
             row.className = 'relative-item';
             row.innerHTML = `<span>${entry.name}</span><strong>${entry.label}</strong>`;
-            relativeDistances.appendChild(row);
+            relativeDistancesEl.appendChild(row);
         });
 }
 
 // Initialize facility map when DOM is ready
 function initializePage() {
-    if (buildingGrid && statusSummary && relativeDistances) {
+    // Re-query DOM elements to ensure they exist
+    const buildingGridEl = document.getElementById('buildingGrid');
+    const statusSummaryEl = document.getElementById('statusSummary');
+    const relativeDistancesEl = document.getElementById('relativeDistances');
+    
+    if (buildingGridEl && statusSummaryEl && relativeDistancesEl) {
         initializeFacilityMap();
+        console.log('Facility map initialized successfully');
     } else {
-        console.warn('Facility map elements not found, retrying...');
+        console.warn('Facility map elements not found, retrying...', {
+            buildingGrid: !!buildingGridEl,
+            statusSummary: !!statusSummaryEl,
+            relativeDistances: !!relativeDistancesEl
+        });
         // Retry after a short delay
         setTimeout(() => {
-            if (buildingGrid && statusSummary && relativeDistances) {
+            const retryBuildingGrid = document.getElementById('buildingGrid');
+            const retryStatusSummary = document.getElementById('statusSummary');
+            const retryRelativeDistances = document.getElementById('relativeDistances');
+            if (retryBuildingGrid && retryStatusSummary && retryRelativeDistances) {
                 initializeFacilityMap();
+                console.log('Facility map initialized on retry');
+            } else {
+                console.error('Failed to initialize facility map - elements still not found');
             }
-        }, 100);
+        }, 500);
     }
     
     // Start polling for sensor data
