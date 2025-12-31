@@ -220,6 +220,12 @@ function showWhitelistPopup(deviceId) {
         return;
     }
     
+    // Check if modal elements exist
+    if (!whitelistModal || !whitelistDeviceInfo) {
+        console.error('Whitelist modal elements not found!');
+        return;
+    }
+    
     // Only show popup if we haven't prompted about this device before
     if (promptedDevices.has(deviceId)) {
         console.log(`Already prompted about device ${deviceId}, skipping popup`);
@@ -233,6 +239,9 @@ function showWhitelistPopup(deviceId) {
     whitelistDeviceInfo.textContent = `Device ID: ${deviceId}`;
     whitelistModal.classList.remove('hidden');
     console.log('Whitelist modal should now be visible');
+    
+    // Force modal to be visible (in case CSS is hiding it)
+    whitelistModal.style.display = 'flex';
 }
 
 function closeWhitelistModal() {
@@ -507,6 +516,13 @@ async function updateDashboard() {
     
     // Update display values
     updateDisplayValues();
+    
+    // Battery alert check
+    if (isBatteryLow()) {
+        batteryAlert.classList.remove('hidden');
+    } else {
+        batteryAlert.classList.add('hidden');
+    }
 }
 
 function updateAllCharts() {
@@ -630,9 +646,30 @@ function handleSaveDevice() {
     }
 }
 
-addDeviceBtn.addEventListener('click', openModal);
-closeModalBtn.addEventListener('click', closeModal);
-saveDeviceBtn.addEventListener('click', handleSaveDevice);
+// Set up event handlers - ensure elements exist
+if (addDeviceBtn) {
+    addDeviceBtn.addEventListener('click', openModal);
+} else {
+    console.error('Add Device button not found');
+}
+
+if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', closeModal);
+}
+
+if (saveDeviceBtn) {
+    saveDeviceBtn.addEventListener('click', handleSaveDevice);
+}
+
+// View Alerts button (placeholder for now)
+const viewAlertsBtns = document.querySelectorAll('.ghost-btn[type="button"]');
+viewAlertsBtns.forEach(btn => {
+    if (btn.textContent.trim() === 'View Alerts' && !btn.id) {
+        btn.addEventListener('click', () => {
+            alert('View Alerts feature coming soon!');
+        });
+    }
+});
 
 window.addEventListener('click', (event) => {
     if (event.target === addDeviceModal) {
@@ -857,19 +894,31 @@ function updateRelativePanel() {
         });
 }
 
-if (buildingGrid && statusSummary && relativeDistances) {
-    initializeFacilityMap();
+// Initialize facility map when DOM is ready
+function initializePage() {
+    if (buildingGrid && statusSummary && relativeDistances) {
+        initializeFacilityMap();
+    } else {
+        console.warn('Facility map elements not found, retrying...');
+        // Retry after a short delay
+        setTimeout(() => {
+            if (buildingGrid && statusSummary && relativeDistances) {
+                initializeFacilityMap();
+            }
+        }, 100);
+    }
+    
+    // Start polling for sensor data
+    const POLL_INTERVAL = 1000;
+    setInterval(updateDashboard, POLL_INTERVAL);
+    updateDashboard();
 }
 
-let lastReceivedData = {
-    temperature: null,
-    co2: null,
-    humidity: null,
-    timestamp: null
-};
-
-const POLL_INTERVAL = 1000;
-setInterval(updateDashboard, POLL_INTERVAL);
-
-updateDashboard();
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializePage);
+} else {
+    // DOM is already ready
+    initializePage();
+}
 
