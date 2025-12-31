@@ -17,6 +17,20 @@ const whitelistYesBtn = document.getElementById('whitelist-yes-btn');
 const whitelistNoBtn = document.getElementById('whitelist-no-btn');
 const whitelistDeviceInfo = document.getElementById('whitelist-device-info');
 
+// Check if modal elements exist
+if (!whitelistModal || !whitelistCloseBtn || !whitelistYesBtn || !whitelistNoBtn || !whitelistDeviceInfo) {
+    console.error('Whitelist modal elements not found! Check HTML structure.');
+}
+
+// Add function to clear whitelist for testing (can be called from browser console)
+window.clearWhitelist = function() {
+    whitelistedDevices = [];
+    promptedDevices.clear();
+    localStorage.removeItem('whitelistedDevices');
+    localStorage.removeItem('promptedDevices');
+    console.log('Whitelist cleared! Refresh the page and send data again.');
+};
+
 const tempCtx = document.getElementById('temperature-chart').getContext('2d');
 const co2Ctx = document.getElementById('co2-chart').getContext('2d');
 const humidityCanvas = document.getElementById('humidity-chart');
@@ -142,18 +156,24 @@ function removeFromPrompted(deviceId) {
 }
 
 function showWhitelistPopup(deviceId) {
-    if (!deviceId) return;
-    
-    // Only show popup if we haven't prompted about this device before
-    if (promptedDevices.has(deviceId)) {
+    if (!deviceId) {
+        console.log('showWhitelistPopup called with no deviceId');
         return;
     }
     
+    // Only show popup if we haven't prompted about this device before
+    if (promptedDevices.has(deviceId)) {
+        console.log(`Already prompted about device ${deviceId}, skipping popup`);
+        return;
+    }
+    
+    console.log(`Displaying whitelist popup for device: ${deviceId}`);
     pendingDevice = deviceId;
     promptedDevices.add(deviceId);
     localStorage.setItem('promptedDevices', JSON.stringify(Array.from(promptedDevices)));
     whitelistDeviceInfo.textContent = `Device ID: ${deviceId}`;
     whitelistModal.classList.remove('hidden');
+    console.log('Whitelist modal should now be visible');
 }
 
 function closeWhitelistModal() {
@@ -161,29 +181,36 @@ function closeWhitelistModal() {
     pendingDevice = null;
 }
 
-// Whitelist modal event handlers
-whitelistYesBtn.addEventListener('click', () => {
-    if (pendingDevice) {
-        addDeviceToWhitelist(pendingDevice);
+// Whitelist modal event handlers (only if elements exist)
+if (whitelistYesBtn && whitelistNoBtn && whitelistCloseBtn && whitelistModal) {
+    whitelistYesBtn.addEventListener('click', () => {
+        if (pendingDevice) {
+            console.log(`User clicked Yes - whitelisting device: ${pendingDevice}`);
+            addDeviceToWhitelist(pendingDevice);
+            closeWhitelistModal();
+            // Immediately refresh dashboard to show data from newly whitelisted device
+            setTimeout(() => updateDashboard(), 100);
+        }
+    });
+
+    whitelistNoBtn.addEventListener('click', () => {
+        console.log(`User clicked No - NOT whitelisting device: ${pendingDevice}`);
         closeWhitelistModal();
-        // Immediately refresh dashboard to show data from newly whitelisted device
-        setTimeout(() => updateDashboard(), 100);
-    }
-});
+    });
 
-whitelistNoBtn.addEventListener('click', () => {
-    closeWhitelistModal();
-});
-
-whitelistCloseBtn.addEventListener('click', () => {
-    closeWhitelistModal();
-});
-
-window.addEventListener('click', (event) => {
-    if (event.target === whitelistModal) {
+    whitelistCloseBtn.addEventListener('click', () => {
+        console.log(`User closed popup - NOT whitelisting device: ${pendingDevice}`);
         closeWhitelistModal();
-    }
-});
+    });
+
+    window.addEventListener('click', (event) => {
+        if (event.target === whitelistModal) {
+            closeWhitelistModal();
+        }
+    });
+} else {
+    console.error('Cannot set up whitelist modal event handlers - elements missing');
+}
 
 async function getSensorData() {
     // Try HTTP bridge endpoint first (where ESP32 gateway sends data)
@@ -211,15 +238,25 @@ async function getSensorData() {
             const reading = data.reading;
             const deviceId = reading.device_id || reading.mac;
             
+            console.log(`Checking device: ${deviceId}, Whitelisted: ${isDeviceWhitelisted(deviceId)}, Whitelist array:`, whitelistedDevices);
+            
             // Check if device is whitelisted
             if (deviceId && !isDeviceWhitelisted(deviceId)) {
+                console.log(`Device ${deviceId} is NOT whitelisted - showing popup`);
                 // Show whitelist popup if not already shown for this device
-                if (pendingDevice !== deviceId && whitelistModal.classList.contains('hidden')) {
+                if (!promptedDevices.has(deviceId)) {
+                    console.log(`Showing whitelist popup for device: ${deviceId}`);
                     showWhitelistPopup(deviceId);
+                } else {
+                    console.log(`Already prompted about device ${deviceId}, not showing popup again`);
                 }
                 // Don't return data if device is not whitelisted
-                console.log(`Device ${deviceId} is not whitelisted, ignoring data`);
+                console.log(`Device ${deviceId} is not whitelisted, ignoring data and NOT updating graphs`);
                 return null;
+            }
+            
+            if (!deviceId) {
+                console.log('Warning: No device_id or mac found in reading');
             }
 
             const { temperature, co2, humidity } = reading;
@@ -258,6 +295,7 @@ async function updateDashboard() {
 
     // If data is null, device is not whitelisted - don't update dashboard
     if (data === null) {
+        console.log('updateDashboard: Data is null (device not whitelisted), skipping dashboard update');
         return;
     }
 

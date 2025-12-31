@@ -13,7 +13,7 @@ $random = New-Object System.Random
 
 for ($i = 1; $i -le 10; $i++) {
     # Generate random sensor values within reasonable ranges
-    $temperature = [math]::Round($random.NextDouble() * 10 + 20, 1)  # 20-30°C
+    $temperature = [math]::Round($random.NextDouble() * 10 + 20, 1)  # 20-30 C
     $humidity = [math]::Round($random.NextDouble() * 30 + 40, 1)      # 40-70%
     $co2 = $random.Next(400, 600)                                     # 400-600 ppm
     
@@ -24,18 +24,18 @@ for ($i = 1; $i -le 10; $i++) {
         co2 = $co2
     } | ConvertTo-Json
     
-    Write-Host "[$i/10] Sending data - Temp: $temperature°C, Humidity: $humidity%, CO2: $co2 ppm" -ForegroundColor Yellow
+    Write-Host "[$i/10] Sending data - Temp: $temperature C, Humidity: $humidity%, CO2: $co2 ppm" -ForegroundColor Yellow
     
     try {
         $response = Invoke-WebRequest -Uri $uri -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
         
         if ($response.StatusCode -eq 200) {
-            Write-Host "  ✓ Success!" -ForegroundColor Green
+            Write-Host "  [OK] Success!" -ForegroundColor Green
         } else {
-            Write-Host "  ✗ Unexpected status: $($response.StatusCode)" -ForegroundColor Red
+            Write-Host "  [ERROR] Unexpected status: $($response.StatusCode)" -ForegroundColor Red
         }
     } catch {
-        Write-Host "  ✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  [ERROR] $($_.Exception.Message)" -ForegroundColor Red
     }
     
     # Wait 1 second before next request (except after the last one)
